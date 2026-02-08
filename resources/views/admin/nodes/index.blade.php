@@ -29,7 +29,7 @@
                             <input type="text" name="filter[name]" class="form-control pull-right" value="{{ request()->input('filter.name') }}" placeholder="Search Nodes">
                             <div class="input-group-btn">
                                 <button type="submit" class="btn btn-default"><i class="fa fa-search"></i></button>
-                                <a href="{{ route('admin.nodes.new') }}"><button type="button" class="btn btn-sm btn-primary" style="border-radius: 0 3px 3px 0;margin-left:-1px;">Create New</button></a>
+                                <a href="{{ route('admin.nodes.new') }}" class="btn btn-sm btn-primary" style="border-radius: 0 3px 3px 0;margin-left:-1px;">Create New</a>
                             </div>
                         </div>
                     </form>
@@ -37,7 +37,7 @@
             </div>
             <div class="box-body table-responsive no-padding">
                 <table class="table table-hover">
-                    <tbody>
+                    <thead>
                         <tr>
                             <th></th>
                             <th>Name</th>
@@ -48,16 +48,30 @@
                             <th class="text-center">SSL</th>
                             <th class="text-center">Public</th>
                         </tr>
+                    </thead>
+                    <tbody>
                         @foreach ($nodes as $node)
                             <tr>
-                                <td class="text-center text-muted left-icon" data-action="ping" data-secret="{{ $node->getDecryptedKey() }}" data-location="{{ $node->scheme }}://{{ $node->fqdn }}:{{ $node->daemonListen }}/api/system"><i class="fa fa-fw fa-refresh fa-spin"></i></td>
-                                <td>{!! $node->maintenance_mode ? '<span class="label label-warning"><i class="fa fa-wrench"></i></span> ' : '' !!}<a href="{{ route('admin.nodes.view', $node->id) }}">{{ $node->name }}</a> <a href="#" class="btn btn-xs btn-info clone-btn" data-toggle="modal" data-target="#cloneModal" data-node-id="{{ $node->id }}" data-node-name="{{ $node->name }}" title="Clone Node" style="margin-left: 10px;"><i class="fa fa-copy"></i></a></td>
+                                <td class="text-center text-muted left-icon" data-action="ping" data-secret="{{ $node->getDecryptedKey() }}" data-location="{{ $node->scheme }}://{{ $node->fqdn }}:{{ $node->daemonListen }}/api/system">
+                                    <i class="fa fa-fw fa-refresh fa-spin"></i>
+                                </td>
+                                <td>
+                                    {!! $node->maintenance_mode ? '<span class="label label-warning"><i class="fa fa-wrench"></i></span> ' : '' !!}
+                                    <a href="{{ route('admin.nodes.view', $node->id) }}">{{ $node->name }}</a>
+                                    <a href="#" class="btn btn-xs btn-info clone-btn" data-toggle="modal" data-target="#cloneModal" data-node-id="{{ $node->id }}" data-node-name="{{ $node->name }}" title="Clone Node" style="margin-left: 10px;">
+                                        <i class="fa fa-copy"></i>
+                                    </a>
+                                </td>
                                 <td>{{ $node->location->short }}</td>
                                 <td>{{ $node->memory }} MiB</td>
                                 <td>{{ $node->disk }} MiB</td>
                                 <td class="text-center">{{ $node->servers_count }}</td>
-                                <td class="text-center" style="color:{{ ($node->scheme === 'https') ? '#50af51' : '#d9534f' }}"><i class="fa fa-{{ ($node->scheme === 'https') ? 'lock' : 'unlock' }}"></i></td>
-                                <td class="text-center"><i class="fa fa-{{ ($node->public) ? 'eye' : 'eye-slash' }}"></i></td>
+                                <td class="text-center" style="color:{{ ($node->scheme === 'https') ? '#50af51' : '#d9534f' }}">
+                                    <i class="fa fa-{{ ($node->scheme === 'https') ? 'lock' : 'unlock' }}"></i>
+                                </td>
+                                <td class="text-center">
+                                    <i class="fa fa-{{ ($node->public) ? 'eye' : 'eye-slash' }}"></i>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -65,7 +79,9 @@
             </div>
             @if($nodes->hasPages())
                 <div class="box-footer with-border">
-                    <div class="col-md-12 text-center">{!! $nodes->appends(['query' => Request::input('query')])->render() !!}</div>
+                    <div class="col-md-12 text-center">
+                        {!! $nodes->appends(['filter' => request()->input('filter')])->render() !!}
+                    </div>
                 </div>
             @endif
         </div>
@@ -124,29 +140,46 @@
         modal.find('#cloneName').val(nodeName + ' (Clone)');
         modal.find('#cloneForm').attr('action', '/admin/nodes/' + nodeId + '/clone');
     });
+
     (function pingNodes() {
-        $('td[data-action="ping"]').each(function(i, element) {
+        const nodes = $('td[data-action="ping"]');
+        let completed = 0;
+
+        if (nodes.length === 0) return;
+
+        nodes.each(function(i, element) {
+            const $el = $(element);
+            const $icon = $el.find('i');
+
             $.ajax({
                 type: 'GET',
-                url: $(element).data('location'),
+                url: $el.data('location'),
                 headers: {
-                    'Authorization': 'Bearer ' + $(element).data('secret'),
+                    'Authorization': 'Bearer ' + $el.data('secret'),
                 },
                 timeout: 5000
             }).done(function (data) {
-                $(element).find('i').tooltip({
+                $icon.tooltip('destroy').tooltip({
                     title: 'v' + data.version,
                 });
-                $(element).removeClass('text-muted').find('i').removeClass().addClass('fa fa-fw fa-heartbeat faa-pulse animated').css('color', '#50af51');
+                $el.removeClass('text-muted');
+                $icon.removeClass().addClass('fa fa-fw fa-heartbeat faa-pulse animated').css('color', '#50af51');
             }).fail(function (error) {
-                var errorText = 'Error connecting to node! Check browser console for details.';
+                let errorText = 'Error connecting to node!';
                 try {
                     errorText = error.responseJSON.errors[0].detail || errorText;
                 } catch (ex) {}
-                $(element).find('i').tooltip({
+                
+                $icon.tooltip('destroy').tooltip({
                     title: errorText,
                 });
-                $(element).removeClass('text-muted').find('i').removeClass().addClass('fa fa-fw fa-times').css('color', '#d9534f');
+                $el.removeClass('text-muted');
+                $icon.removeClass().addClass('fa fa-fw fa-times').css('color', '#d9534f');
+            }).always(function() {
+                completed++;
+                if (completed === nodes.length) {
+                    setTimeout(pingNodes, 10000);
+                }
             });
         });
     })();
