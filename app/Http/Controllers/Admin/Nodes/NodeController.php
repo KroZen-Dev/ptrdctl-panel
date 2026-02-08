@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Pterodactyl\Models\Node;
 use Spatie\QueryBuilder\QueryBuilder;
 use Pterodactyl\Http\Controllers\Controller;
+use Pterodactyl\Models\Location;
 
 class NodeController extends Controller
 {
@@ -22,6 +23,7 @@ class NodeController extends Controller
             ->allowedSorts(['id'])
             ->paginate(25);
 
-        return view('admin.nodes.index', ['nodes' => $nodes]);
+        $locations = Location::all();
+        return view('admin.nodes.index', compact('nodes', 'locations'));
     }
 }
